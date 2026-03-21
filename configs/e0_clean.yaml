@@ -1,0 +1,30 @@
+experiment_id: e0_clean
+
+data:
+  dataset_name: squad
+  dataset_split: validation
+  max_questions_default: 300
+  corpus_out: outputs/corpora/squad_chunks.jsonl
+
+chunking:
+  max_chars: 900
+  overlap_chars: 150
+
+retrieval:
+  embed_model: BAAI/bge-base-en-v1.5
+  index_out: outputs/indexes/e0_clean.faiss
+  meta_out: outputs/indexes/e0_clean_meta.jsonl
+  top_k: 5
+  batch_size: 64
+
+generation:
+  model: google/flan-t5-base
+  max_new_tokens: 32
+  temperature: 0.0
+  do_sample: false
+
+eval:
+  run_dir: outputs/runs/e0_clean
+  compute_retrieval_hit: true
+  save_predictions: true
+  seed: 42
