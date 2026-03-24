@@ -1,8 +1,13 @@
 from dataclasses import dataclass
-from typing import List, Tuple
+from typing import List, Optional, Protocol
 
-from src.rag.retrieve import FaissRetriever, RetrievedChunk
+from src.rag.retrieve import RetrievedChunk
 from src.rag.generate import HFGenerator
+
+
+class RetrieverLike(Protocol):
+    def retrieve(self, query: str, top_k: Optional[int] = None) -> List[RetrievedChunk]:
+        ...
 
 
 def pack_context(chunks: List[RetrievedChunk], max_chars: int = 2000) -> str:
@@ -28,12 +33,12 @@ class RAGResult:
 
 
 class RAGPipeline:
-    def __init__(self, retriever: FaissRetriever, generator: HFGenerator, context_max_chars: int = 2000):
+    def __init__(self, retriever: RetrieverLike, generator: HFGenerator, context_max_chars: int = 2000):
         self.retriever = retriever
         self.generator = generator
         self.context_max_chars = context_max_chars
 
-    def answer(self, question: str, top_k: int = None) -> RAGResult:
+    def answer(self, question: str, top_k: Optional[int] = None) -> RAGResult:
         chunks = self.retriever.retrieve(question, top_k=top_k)
         context = pack_context(chunks, max_chars=self.context_max_chars)
         ans = self.generator.generate(question, context)

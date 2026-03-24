@@ -7,10 +7,10 @@ from typing import Any, Dict, List
 from datasets import load_dataset
 from tqdm import tqdm
 
-from src.eval.metrics import squad_em_f1
+from src.eval.metrics import squad_em_f1, answer_span_hit
 from src.rag.generate import GenerationConfig, HFGenerator
 from src.rag.pipeline import RAGPipeline
-from src.rag.retrieve import FaissRetriever
+from src.rag.retrieve import FaissRetriever, DualViewRetriever
 from src.utils.io import ensure_dir, load_yaml, write_json, write_jsonl
 from src.utils.seed import set_seed
 
@@ -44,11 +44,23 @@ def main() -> None:
 
     # Build components
     retr_cfg = cfg["retrieval"]
-    retriever = FaissRetriever(
-        index_path=retr_cfg["index_out"],
-        meta_path=retr_cfg.get("meta_out", retr_cfg["index_out"] + ".meta.jsonl"),
-        embed_model=retr_cfg["embed_model"],
-        top_k=int(retr_cfg.get("top_k", 5)),
+    mode = retr_cfg.get("mode", "single")
+    if mode == "dual_view":
+        retriever = DualViewRetriever(
+            raw_index_path=retr_cfg["raw_index_out"],
+            raw_meta_path=retr_cfg["raw_meta_out"],
+            norm_index_path=retr_cfg["norm_index_out"],
+            norm_meta_path=retr_cfg["norm_meta_out"],
+            embed_model=retr_cfg["embed_model"],
+            top_k=int(retr_cfg.get("top_k", 5)),
+            per_index_k=int(retr_cfg.get("per_index_k", retr_cfg.get("top_k", 5))),
+    )
+    else:
+        retriever = FaissRetriever(
+            index_path=retr_cfg["index_out"],
+            meta_path=retr_cfg.get("meta_out", retr_cfg["index_out"] + ".meta.jsonl"),
+            embed_model=retr_cfg["embed_model"],
+            top_k=int(retr_cfg.get("top_k", 5)),
     )
 
     gen_cfg = cfg["generation"]
@@ -66,6 +78,7 @@ def main() -> None:
     f1s: List[float] = []
     hit: List[int] = []
     latencies: List[float] = []
+    span_hit: List[int] = []
 
     compute_hit = bool(cfg["eval"].get("compute_retrieval_hit", True))
 
@@ -77,6 +90,9 @@ def main() -> None:
 
         t0 = time.time()
         result = pipe.answer(question)
+        retrieved_texts = [c.text for c in result.retrieved]
+        span_h = answer_span_hit(retrieved_texts, answers)
+        span_hit.append(span_h)
         dt = time.time() - t0
 
         pred = result.answer
@@ -106,6 +122,7 @@ def main() -> None:
                 {"score": c.score, "chunk_id": c.chunk_id, "doc_id": c.doc_id, "title": c.title}
                 for c in result.retrieved
             ],
+            "answer_span_hit": span_h,
         })
 
     def percentile(xs: List[float], p: float) -> float:
@@ -123,6 +140,7 @@ def main() -> None:
         "EM": float(sum(ems) / max(1, len(ems))),
         "F1": float(sum(f1s) / max(1, len(f1s))),
         "retrieval_hit_rate": float(sum(hit) / max(1, len(hit))) if hit else None,
+        "answer_span_hit_rate": float(sum(span_hit) / max(1, len(span_hit))) if span_hit else None,
         "latency_p50_sec": percentile(latencies, 50),
         "latency_p95_sec": percentile(latencies, 95),
         "config_path": args.config,

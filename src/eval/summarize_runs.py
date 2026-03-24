@@ -36,6 +36,7 @@ def main():
             "EM": pick(m, "EM"),
             "F1": pick(m, "F1"),
             "retrieval_hit_rate": pick(m, "retrieval_hit_rate"),
+            "answer_span_hit_rate": pick(m, "answer_span_hit_rate"),
             "latency_p50_sec": pick(m, "latency_p50_sec"),
             "latency_p95_sec": pick(m, "latency_p95_sec"),
             "run_dir": run_dir,
@@ -43,7 +44,7 @@ def main():
 
     # Write CSV
     csv_path = os.path.join(args.out_dir, "results.csv")
-    cols = ["experiment_id","num_questions","EM","F1","retrieval_hit_rate","latency_p50_sec","latency_p95_sec","run_dir"]
+    cols = ["experiment_id","num_questions","EM","F1","retrieval_hit_rate","answer_span_hit_rate","latency_p50_sec","latency_p95_sec","run_dir"]
     with open(csv_path, "w", encoding="utf-8") as f:
         f.write(",".join(cols) + "\n")
         for r in rows:

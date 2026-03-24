@@ -46,3 +46,31 @@ def squad_em_f1(prediction: str, ground_truths: List[str]) -> Tuple[float, float
     em = max(exact_match_score(prediction, gt) for gt in ground_truths)
     f1 = max(f1_score(prediction, gt) for gt in ground_truths)
     return float(em), float(f1)
+
+
+def _answer_in_text(answer: str, text: str) -> bool:
+    """
+    Light normalization match:
+    - normalize_answer removes punctuation/articles + collapses whitespace
+    - substring check in normalized space
+    Fallback to lowercase raw substring if normalization becomes empty.
+    """
+    a = normalize_answer(answer)
+    t = normalize_answer(text)
+
+    if a:
+        return a in t
+    # fallback for rare cases where normalized answer becomes empty
+    answer_raw = answer.strip().lower()
+    return bool(answer_raw) and (answer_raw in text.lower())
+
+
+def answer_span_hit(retrieved_texts: List[str], gold_answers: List[str]) -> int:
+    """
+    Returns 1 if ANY gold answer appears in ANY retrieved chunk (after light normalization).
+    """
+    for ans in gold_answers:
+        for txt in retrieved_texts:
+            if _answer_in_text(ans, txt):
+                return 1
+    return 0

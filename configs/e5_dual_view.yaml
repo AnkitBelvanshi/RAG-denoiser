@@ -1,0 +1,32 @@
+experiment_id: e5_dual_view
+
+data:
+  dataset_name: squad
+  dataset_split: validation
+  max_questions_default: 300
+
+retrieval:
+  mode: dual_view
+  embed_model: BAAI/bge-base-en-v1.5
+  top_k: 5
+  per_index_k: 8
+
+  # RAW noisy index
+  raw_index_out: outputs/indexes/e1_noisy_raw.faiss
+  raw_meta_out: outputs/indexes/e1_noisy_raw_meta.jsonl
+
+  # NORMALIZED noisy index
+  norm_index_out: outputs/indexes/e1_noisy_norm.faiss
+  norm_meta_out: outputs/indexes/e1_noisy_norm_meta.jsonl
+
+generation:
+  model: google/flan-t5-base
+  max_new_tokens: 32
+  temperature: 0.0
+  do_sample: false
+
+eval:
+  run_dir: outputs/runs/e5_dual_view
+  compute_retrieval_hit: true
+  save_predictions: true
+  seed: 42
