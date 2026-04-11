@@ -4,13 +4,16 @@ import json
 import os
 from typing import Dict, List
 
+
 def load_metrics(run_dir: str) -> Dict:
     path = os.path.join(run_dir, "metrics.json")
     with open(path, "r", encoding="utf-8") as f:
         return json.load(f)
 
+
 def pick(d: Dict, key: str):
     return d.get(key, None)
+
 
 def fmt(x):
     if x is None:
@@ -18,6 +21,7 @@ def fmt(x):
     if isinstance(x, float):
         return f"{x:.4f}"
     return str(x)
+
 
 def main():
     ap = argparse.ArgumentParser()
@@ -30,21 +34,39 @@ def main():
     rows: List[Dict] = []
     for run_dir in args.runs:
         m = load_metrics(run_dir)
-        rows.append({
-            "experiment_id": pick(m, "experiment_id") or os.path.basename(run_dir),
-            "num_questions": pick(m, "num_questions"),
-            "EM": pick(m, "EM"),
-            "F1": pick(m, "F1"),
-            "retrieval_hit_rate": pick(m, "retrieval_hit_rate"),
-            "answer_span_hit_rate": pick(m, "answer_span_hit_rate"),
-            "latency_p50_sec": pick(m, "latency_p50_sec"),
-            "latency_p95_sec": pick(m, "latency_p95_sec"),
-            "run_dir": run_dir,
-        })
+        rows.append(
+            {
+                "experiment_id": pick(m, "experiment_id") or os.path.basename(run_dir),
+                "num_questions": pick(m, "num_questions"),
+                "EM": pick(m, "EM"),
+                "F1": pick(m, "F1"),
+                "retrieval_hit_rate": pick(m, "retrieval_hit_rate"),
+                "answer_span_hit_rate_raw": pick(m, "answer_span_hit_rate_raw"),
+                "answer_span_hit_rate": pick(m, "answer_span_hit_rate"),
+                "denoise_query_fraction": pick(m, "denoise_query_fraction"),
+                "denoise_avg_chunks_per_query": pick(m, "denoise_avg_chunks_per_query"),
+                "latency_p50_sec": pick(m, "latency_p50_sec"),
+                "latency_p95_sec": pick(m, "latency_p95_sec"),
+                "run_dir": run_dir,
+            }
+        )
 
     # Write CSV
     csv_path = os.path.join(args.out_dir, "results.csv")
-    cols = ["experiment_id","num_questions","EM","F1","retrieval_hit_rate","answer_span_hit_rate","latency_p50_sec","latency_p95_sec","run_dir"]
+    cols = [
+        "experiment_id",
+        "num_questions",
+        "EM",
+        "F1",
+        "retrieval_hit_rate",
+        "answer_span_hit_rate_raw",
+        "answer_span_hit_rate",
+        "denoise_query_fraction",
+        "denoise_avg_chunks_per_query",
+        "latency_p50_sec",
+        "latency_p95_sec",
+        "run_dir",
+    ]
     with open(csv_path, "w", encoding="utf-8") as f:
         f.write(",".join(cols) + "\n")
         for r in rows:
@@ -54,16 +76,22 @@ def main():
     md_path = os.path.join(args.out_dir, "results.md")
     with open(md_path, "w", encoding="utf-8") as f:
         f.write("# Results Summary\n\n")
-        f.write("| Experiment | #Q | EM | F1 | Hit@k | p50 latency (s) | p95 latency (s) |\n")
-        f.write("|---|---:|---:|---:|---:|---:|---:|\n")
+        f.write(
+            "| Experiment | #Q | EM | F1 | Hit@k | SpanHit@k (raw) | SpanHit@k (post) | "
+            "Denoise query frac | Denoise avg chunks | p50 latency (s) | p95 latency (s) |\n"
+        )
+        f.write("|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|\n")
         for r in rows:
             f.write(
                 f"| {r['experiment_id']} | {r['num_questions']} | {fmt(r['EM'])} | {fmt(r['F1'])} | "
-                f"{fmt(r['retrieval_hit_rate'])} | {fmt(r['latency_p50_sec'])} | {fmt(r['latency_p95_sec'])} |\n"
+                f"{fmt(r['retrieval_hit_rate'])} | {fmt(r['answer_span_hit_rate_raw'])} | {fmt(r['answer_span_hit_rate'])} | "
+                f"{fmt(r['denoise_query_fraction'])} | {fmt(r['denoise_avg_chunks_per_query'])} | "
+                f"{fmt(r['latency_p50_sec'])} | {fmt(r['latency_p95_sec'])} |\n"
             )
 
     print(f"Wrote: {csv_path}")
     print(f"Wrote: {md_path}")
+
 
 if __name__ == "__main__":
     main()
