@@ -85,7 +85,7 @@ source .venv/bin/activate        # Linux/Mac
 pip install -r requirements.txt
 ```
 
-**Requirements:** Python 3.10+, CUDA-capable GPU recommended (tested on RTX 4060 8GB).
+**Requirements:** Python 3.10+, CUDA-capable GPU recommended.
 
 ## Reproduce Results
 
