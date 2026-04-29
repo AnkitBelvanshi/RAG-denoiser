@@ -1,0 +1,14 @@
+data:
+  corpus_in: outputs/corpora/squad_chunks.jsonl
+  corpus_out: outputs/corpora/squad_chunks_noisy_low_v2.jsonl
+
+noise:
+  seed: 42
+  chunk_fraction: 1.0
+  edits_per_100_chars: 1.0
+  preserve_whitespace: true
+  op_weights:
+    swap: 0.4
+    delete: 0.2
+    insert: 0.2
+    substitute: 0.2

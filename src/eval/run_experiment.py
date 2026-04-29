@@ -112,6 +112,7 @@ def main() -> None:
     denoiser = None
     gate_enabled = False
     gate_threshold = 0.0
+    gate_percentile = None
     max_denoise_chunks = 0
 
     if use_denoise:
@@ -130,6 +131,8 @@ def main() -> None:
 
         gate_enabled = bool(den_cfg.get("gated", True))
         gate_threshold = float(den_cfg.get("gate_threshold", 0.02))
+        gate_percentile_cfg = den_cfg.get("gate_percentile", None)
+        gate_percentile = float(gate_percentile_cfg) if gate_percentile_cfg is not None else None
         max_denoise_chunks = int(den_cfg.get("max_chunks", 2))
 
     preds_rows: List[Dict[str, Any]] = []
@@ -143,6 +146,10 @@ def main() -> None:
     # denoise usage stats (thesis-friendly)
     denoise_queries = 0
     denoise_chunks_total = 0
+    gate_score_mins: List[float] = []
+    gate_score_medians: List[float] = []
+    gate_score_maxes: List[float] = []
+    gate_all_scores: List[float] = []
 
     compute_hit = bool(cfg["eval"].get("compute_retrieval_hit", True))
 
@@ -169,13 +176,21 @@ def main() -> None:
         span_hit_raw.append(raw_span_h)
 
         denoised_indices: List[int] = []
+        gate_debug = None
 
         # 3) denoise (optional, gated)
         if denoiser is not None and top_chunks:
             if gate_enabled:
-                denoised_indices, _scores = select_noisy_indices(
-                    raw_texts, threshold=gate_threshold, max_chunks=max_denoise_chunks
+                denoised_indices, gate_debug = select_noisy_indices(
+                    raw_texts,
+                    threshold=gate_threshold,
+                    max_chunks=max_denoise_chunks,
+                    percentile=gate_percentile,
                 )
+                gate_score_mins.append(float(gate_debug["score_min"]))
+                gate_score_medians.append(float(gate_debug["score_median"]))
+                gate_score_maxes.append(float(gate_debug["score_max"]))
+                gate_all_scores.extend(float(x["score"]) for x in gate_debug["scored"])
             else:
                 denoised_indices = list(range(len(raw_texts)))
 
@@ -245,10 +260,18 @@ def main() -> None:
                 "answer_span_hit_raw": raw_span_h,
                 "answer_span_hit": span_h,
                 "denoised_indices": denoised_indices,
+                "noise_scores": [x["score"] for x in gate_debug["scored"]] if gate_debug else None,
+                "noise_score_min": gate_debug["score_min"] if gate_debug else None,
+                "noise_score_median": gate_debug["score_median"] if gate_debug else None,
+                "noise_score_max": gate_debug["score_max"] if gate_debug else None,
+                "noise_gate_percentile": gate_debug["percentile"] if gate_debug else None,
+                "noise_gate_percentile_cutoff": gate_debug["percentile_cutoff"] if gate_debug else None,
+                "noise_gate_effective_threshold": gate_debug["effective_threshold"] if gate_debug else None,
                 "rerank_enabled": use_rerank,
                 "denoise_enabled": use_denoise,
                 "denoise_gate_enabled": gate_enabled if use_denoise else False,
                 "denoise_gate_threshold": gate_threshold if use_denoise else None,
+                "denoise_gate_percentile_cfg": gate_percentile if use_denoise else None,
                 "denoise_max_chunks": max_denoise_chunks if use_denoise else None,
             }
         )
@@ -280,9 +303,16 @@ def main() -> None:
         "denoise_enabled": use_denoise,
         "denoise_gate_enabled": gate_enabled if use_denoise else False,
         "denoise_gate_threshold": gate_threshold if use_denoise else None,
+        "denoise_gate_percentile": gate_percentile if use_denoise else None,
         "denoise_max_chunks": max_denoise_chunks if use_denoise else None,
         "denoise_query_fraction": (float(denoise_queries) / max(1, len(ds))) if use_denoise else None,
         "denoise_avg_chunks_per_query": (float(denoise_chunks_total) / max(1, len(ds))) if use_denoise else None,
+        "noise_score_chunk_p50": percentile(gate_all_scores, 50) if gate_all_scores else None,
+        "noise_score_chunk_p90": percentile(gate_all_scores, 90) if gate_all_scores else None,
+        "noise_score_chunk_p95": percentile(gate_all_scores, 95) if gate_all_scores else None,
+        "noise_score_query_min_avg": float(sum(gate_score_mins) / len(gate_score_mins)) if gate_score_mins else None,
+        "noise_score_query_median_avg": float(sum(gate_score_medians) / len(gate_score_medians)) if gate_score_medians else None,
+        "noise_score_query_max_avg": float(sum(gate_score_maxes) / len(gate_score_maxes)) if gate_score_maxes else None,
     }
 
     write_json(os.path.join(run_dir, "metrics.json"), metrics)
