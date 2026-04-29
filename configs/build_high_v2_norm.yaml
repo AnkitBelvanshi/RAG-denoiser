@@ -1,0 +1,8 @@
+data:
+  corpus_out: outputs/corpora/squad_chunks_noisy_high_v2_norm.jsonl
+
+retrieval:
+  embed_model: BAAI/bge-base-en-v1.5
+  index_out: outputs/indexes/high_v2_norm.faiss
+  meta_out: outputs/indexes/high_v2_norm_meta.jsonl
+  batch_size: 64

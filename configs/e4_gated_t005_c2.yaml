@@ -1,0 +1,40 @@
+experiment_id: e4_gated_t005_c2
+
+data:
+  dataset_name: squad
+  dataset_split: validation
+  max_questions_default: 300
+
+retrieval:
+  mode: single
+  embed_model: BAAI/bge-base-en-v1.5
+  top_k: 5
+  index_out: outputs/indexes/e1_noisy.faiss
+  meta_out: outputs/indexes/e1_noisy_meta.jsonl
+
+rerank:
+  enabled: false
+
+denoise:
+  enabled: true
+  gated: true
+  gate_threshold: 0.05
+  gate_percentile: 90
+  max_chunks: 2
+  base_model: google/flan-t5-small
+  adapter_path: outputs/models/denoiser_lora
+  batch_size: 8
+  device: cuda
+  max_new_tokens: 32
+
+generation:
+  model: google/flan-t5-base
+  max_new_tokens: 32
+  temperature: 0.0
+  do_sample: false
+
+eval:
+  run_dir: outputs/runs/e4_gated_t005_c2
+  compute_retrieval_hit: true
+  save_predictions: true
+  seed: 42
