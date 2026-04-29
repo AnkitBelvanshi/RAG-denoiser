@@ -229,6 +229,3 @@ Three matched severity levels, same seed (42), same operation weights:
 - Rajpurkar et al., 2016 — *SQuAD: 100,000+ Questions for Machine Comprehension of Text*
 - Hu et al., 2022 — *LoRA: Low-Rank Adaptation of Large Language Models*
 
-## License
-
-MIT
